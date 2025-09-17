@@ -91,6 +91,9 @@ export function updateAuthUI() {
     document.body.classList.toggle('user-is-logged-in', isLoggedIn);
 
     if (authStatusContainer) {
+        // Clear existing content
+        authStatusContainer.innerHTML = '';
+
         if (isLoggedIn && currentUser) {
             const avatarHTML = Avatar({
                 username: currentUser.username,
@@ -98,22 +101,48 @@ export function updateAuthUI() {
                 size: 'small',
                 className: 'header-avatar'
             });
-            authStatusContainer.innerHTML = `
-                <a href="#account" class="button-secondary">My Account</a>
-                <a href="#account" title="My Account" class="header-avatar-link">${avatarHTML}</a>
-            `;
+
+            const myAccountLink = document.createElement('a');
+            myAccountLink.href = '#account';
+            myAccountLink.className = 'button-secondary';
+            myAccountLink.textContent = 'My Account';
+
+            const avatarLink = document.createElement('a');
+            avatarLink.href = '#account';
+            avatarLink.title = 'My Account';
+            avatarLink.className = 'header-avatar-link';
+
+            const parser = new DOMParser();
+            const avatarNode = parser.parseFromString(avatarHTML, 'text/html').body.firstChild;
+            avatarLink.appendChild(avatarNode);
+
+            authStatusContainer.appendChild(myAccountLink);
+            authStatusContainer.appendChild(avatarLink);
+
         } else {
-            authStatusContainer.innerHTML = `
-                <a href="#login" class="button-secondary">Log In</a>
-            `;
+            const loginLink = document.createElement('a');
+            loginLink.href = '#login';
+            loginLink.className = 'button-secondary';
+            loginLink.textContent = 'Log In';
+            authStatusContainer.appendChild(loginLink);
         }
     }
 
     if (authBtnMobileContainer) {
+        // Clear existing content
+        authBtnMobileContainer.innerHTML = '';
         if (isLoggedIn && currentUser) {
-            authBtnMobileContainer.innerHTML = `<a href="#account" class="button-secondary">My Account</a>`;
+            const myAccountLink = document.createElement('a');
+            myAccountLink.href = '#account';
+            myAccountLink.className = 'button-secondary';
+            myAccountLink.textContent = 'My Account';
+            authBtnMobileContainer.appendChild(myAccountLink);
         } else {
-            authBtnMobileContainer.innerHTML = `<a href="#login" class="button-secondary">Log In</a>`;
+            const loginLink = document.createElement('a');
+            loginLink.href = '#login';
+            loginLink.className = 'button-secondary';
+            loginLink.textContent = 'Log In';
+            authBtnMobileContainer.appendChild(loginLink);
         }
     }
 }

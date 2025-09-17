@@ -66,6 +66,7 @@ function attachEventListeners() {
 
 export async function render(container) {
     const { staff } = await getCombinedData();
-    container.innerHTML = createHTML(staff);
+    const sanitizedHTML = DOMPurify.sanitize(createHTML(staff));
+    container.innerHTML = sanitizedHTML;
     attachEventListeners();
 }

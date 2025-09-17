@@ -15,7 +15,8 @@ export function initModal() {
     `;
 
     const openModal = (person) => {
-        modalBodyContent.innerHTML = createStaffModalHTML(person);
+        const sanitizedHTML = DOMPurify.sanitize(createStaffModalHTML(person));
+        modalBodyContent.innerHTML = sanitizedHTML;
         modalOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
     };
