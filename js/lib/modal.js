@@ -16,7 +16,17 @@ export function initModal() {
 
     const openModal = (person) => {
         const sanitizedHTML = DOMPurify.sanitize(createStaffModalHTML(person));
-        modalBodyContent.innerHTML = sanitizedHTML;
+
+        while (modalBodyContent.firstChild) {
+            modalBodyContent.removeChild(modalBodyContent.firstChild);
+        }
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(sanitizedHTML, 'text/html');
+        Array.from(doc.body.children).forEach(node => {
+            modalBodyContent.appendChild(node);
+        });
+
         modalOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
     };

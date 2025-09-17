@@ -67,6 +67,16 @@ function attachEventListeners() {
 export async function render(container) {
     const { staff } = await getCombinedData();
     const sanitizedHTML = DOMPurify.sanitize(createHTML(staff));
-    container.innerHTML = sanitizedHTML;
+
+    while (container.firstChild) {
+        container.removeChild(container.firstChild);
+    }
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(sanitizedHTML, 'text/html');
+    Array.from(doc.body.children).forEach(node => {
+        container.appendChild(node);
+    });
+
     attachEventListeners();
 }
