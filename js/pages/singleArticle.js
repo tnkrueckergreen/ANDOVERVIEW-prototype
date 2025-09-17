@@ -70,11 +70,9 @@ function injectImagesIntoContent(content, images) {
     if (!images || images.length === 0) return { mainContent: content, bottomContent: '' };
 
     const sanitizedContent = DOMPurify.sanitize(content, { USE_PROFILES: { html: true } });
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = sanitizedContent;
-    let contentElements = Array.from(tempDiv.children);
-
     const parser = new DOMParser();
+    const doc = parser.parseFromString(sanitizedContent, 'text/html');
+    let contentElements = Array.from(doc.body.children);
 
     const createImageFigureNode = (image) => {
         const figureHtml = createInlineImageFigure(image);
