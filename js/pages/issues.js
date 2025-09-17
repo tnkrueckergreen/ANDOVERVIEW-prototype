@@ -62,7 +62,7 @@ function attachSortListener() {
     sortSelect.addEventListener('change', (e) => {
         const sortBy = e.target.value;
         const sortedIssues = sortItems(issuesToDisplay, sortBy);
-        listContainer.innerHTML = renderList(sortedIssues, IssueCard);
+        listContainer.innerHTML = DOMPurify.sanitize(renderList(sortedIssues, IssueCard));
         renderPdfPreviews();
     });
 }
@@ -94,7 +94,7 @@ export async function render(container) {
 
         const initiallySortedIssues = sortItems(issuesToDisplay, 'date-desc');
 
-        container.innerHTML = createHTML(initiallySortedIssues);
+        container.innerHTML = DOMPurify.sanitize(createHTML(initiallySortedIssues));
         
         attachSortListener();
         renderPdfPreviews();

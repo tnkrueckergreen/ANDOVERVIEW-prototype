@@ -10,9 +10,10 @@ import { sortItems } from '../lib/sorting.js';
 let searchResults = [];
 
 function createHTML(query, results) {
+    const sanitizedQuery = DOMPurify.sanitize(query);
     const title = results.length > 0
-        ? `Search results for '<span class="query">${query}</span>'`
-        : `No results found for '<span class="query">${query}</span>'`;
+        ? `Search results for '<span class="query">${sanitizedQuery}</span>'`
+        : `No results found for '<span class="query">${sanitizedQuery}</span>'`;
     
     const subtitle = results.length === 0 
         ? 'Try searching for something else, or check out our latest articles.' 
@@ -43,13 +44,13 @@ function attachSortListener() {
     sortSelect.addEventListener('change', (e) => {
         const sortBy = e.target.value;
         const sortedResults = sortItems(searchResults, sortBy);
-        gridContainer.innerHTML = renderList(sortedResults, SmallCard);
+        gridContainer.innerHTML = DOMPurify.sanitize(renderList(sortedResults, SmallCard));
     });
 }
 
 export async function render(container, query) {
     const decodedQuery = decodeURIComponent(query);
     searchResults = await performSearch(decodedQuery);
-    container.innerHTML = createHTML(decodedQuery, searchResults);
+    container.innerHTML = DOMPurify.sanitize(createHTML(decodedQuery, searchResults));
     attachSortListener();
 }

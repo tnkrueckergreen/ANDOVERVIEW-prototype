@@ -29,7 +29,7 @@ function attachSortListener() {
     sortSelect.addEventListener('change', (e) => {
         const sortBy = e.target.value;
         const sortedArticles = sortItems(articlesToDisplay, sortBy);
-        gridContainer.innerHTML = renderList(sortedArticles, SmallCard);
+        gridContainer.innerHTML = DOMPurify.sanitize(renderList(sortedArticles, SmallCard));
     });
 }
 
@@ -62,6 +62,6 @@ export async function render(container, filterValue = 'all', filterType = 'categ
     }
 
     articlesToDisplay = sortItems(articlesToDisplay, 'date-desc');
-    container.innerHTML = createHTML(title, articlesToDisplay);
+    container.innerHTML = DOMPurify.sanitize(createHTML(title, articlesToDisplay));
     attachSortListener();
 }

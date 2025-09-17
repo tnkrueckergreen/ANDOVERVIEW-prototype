@@ -32,12 +32,20 @@ export function initHeaderSearch() {
         const fragment = document.createDocumentFragment();
         results.slice(0, 4).forEach(article => {
             const li = document.createElement('li');
-            li.innerHTML = `
-                <a href="#single-article-page/${article.id}">
-                    <span class="search-result-title">${article.title}</span>
-                    <span class="search-result-category">${article.category}</span>
-                </a>
-            `;
+            const a = document.createElement('a');
+            a.href = `#single-article-page/${article.id}`;
+
+            const titleSpan = document.createElement('span');
+            titleSpan.className = 'search-result-title';
+            titleSpan.textContent = article.title;
+
+            const categorySpan = document.createElement('span');
+            categorySpan.className = 'search-result-category';
+            categorySpan.textContent = article.category;
+
+            a.appendChild(titleSpan);
+            a.appendChild(categorySpan);
+            li.appendChild(a);
             fragment.appendChild(li);
         });
         headerSearchResults.appendChild(fragment);

@@ -132,7 +132,7 @@ export async function render(container) {
     const featuredArticles = articles.filter(a => a.display === 'featured').slice(0, 2);
     const recentArticles = articles.filter(a => a.display === 'recent').slice(0, 6);
 
-    container.innerHTML = createHTML(featuredArticles, recentArticles);
+    container.innerHTML = DOMPurify.sanitize(createHTML(featuredArticles, recentArticles));
 
     populateTicker(articles);
     initTypewriterEffect();

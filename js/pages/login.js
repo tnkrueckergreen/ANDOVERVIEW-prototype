@@ -70,6 +70,6 @@ function attachEventListeners() {
 }
 
 export function render(container) {
-    container.innerHTML = createHTML();
+    container.innerHTML = DOMPurify.sanitize(createHTML());
     attachEventListeners();
 }

@@ -7,15 +7,18 @@ import { initPasswordToggle } from '../lib/passwordToggle.js';
 
 function updatePageAvatars(user) {
     const newAvatarHTML = AccountAvatar(user);
+    const parser = new DOMParser();
+    const newAvatarNode = parser.parseFromString(newAvatarHTML, 'text/html').body.firstChild;
 
     const headerAvatar = document.querySelector('.account-header .account-avatar');
-    if (headerAvatar) {
-        headerAvatar.outerHTML = newAvatarHTML;
+    if (headerAvatar && newAvatarNode) {
+        headerAvatar.parentNode.replaceChild(newAvatarNode.cloneNode(true), headerAvatar);
     }
 
     const settingsAvatarContainer = document.getElementById('avatar-display-container');
-    if (settingsAvatarContainer) {
-        settingsAvatarContainer.innerHTML = newAvatarHTML;
+    if (settingsAvatarContainer && newAvatarNode) {
+        settingsAvatarContainer.innerHTML = '';
+        settingsAvatarContainer.appendChild(newAvatarNode);
     }
 }
 
@@ -293,7 +296,12 @@ function attachFormListeners() {
 
         const reader = new FileReader();
         reader.onload = (event) => {
-            avatarDisplayContainer.innerHTML = `<img src="${event.target.result}" alt="New avatar preview" class="avatar avatar--large account-avatar">`;
+            avatarDisplayContainer.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = event.target.result;
+            img.alt = 'New avatar preview';
+            img.className = 'avatar avatar--large account-avatar';
+            avatarDisplayContainer.appendChild(img);
             defaultActions.style.display = 'none';
             editingActions.style.display = 'flex';
         };
@@ -301,7 +309,12 @@ function attachFormListeners() {
     });
 
     cancelBtn.addEventListener('click', () => {
-        avatarDisplayContainer.innerHTML = originalAvatarHTML;
+        const parser = new DOMParser();
+        const originalAvatarNode = parser.parseFromString(originalAvatarHTML, 'text/html').body.firstChild;
+        avatarDisplayContainer.innerHTML = '';
+        if(originalAvatarNode) {
+            avatarDisplayContainer.appendChild(originalAvatarNode);
+        }
         fileInput.value = '';
         defaultActions.style.display = 'flex';
         editingActions.style.display = 'none';
@@ -436,7 +449,9 @@ export async function render(container) {
         location.hash = '#login';
         return;
     }
-    container.innerHTML = createHTML(null);
+
+    container.innerHTML = DOMPurify.sanitize(createHTML(null));
+
     const [accountData, siteData] = await Promise.all([getAccountData(), getCombinedData()]);
 
     if (!accountData || accountData.error) {
@@ -455,6 +470,6 @@ export async function render(container) {
     const recentViewIds = [...accountData.viewedArticleIds].reverse().slice(0, 4);
     const viewedArticles = getArticlesByIds(recentViewIds);
 
-    container.innerHTML = createHTML(accountData, likedArticles, bookmarkedArticles, viewedArticles);
+    container.innerHTML = DOMPurify.sanitize(createHTML(accountData, likedArticles, bookmarkedArticles, viewedArticles));
     attachEventListeners();
 }

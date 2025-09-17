@@ -66,56 +66,136 @@ function formatTimeAgo(dateString) {
 
 function createAuthorLineHTML(writers) { if (!writers || writers.length === 0) return ''; const irregularPlurals = { 'Editor-in-Chief': 'Editors-in-Chief' }; const irregularSingulars = Object.fromEntries(Object.entries(irregularPlurals).map(([s, p]) => [p, s])); function normalizeRole(role, count) { if (!role) return ''; if (count === 1) { if (irregularSingulars[role]) return irregularSingulars[role]; if (role.endsWith('s') && !role.endsWith('ss') && !['arts', 'sports'].includes(role.toLowerCase())) { return role.slice(0, -1); } return role; } else { if (irregularPlurals[role]) return irregularPlurals[role]; if (!role.endsWith('s')) return `${role}s`; return role; } } const formatNames = (writers) => { const linkedNames = writers.map(w => `<a href="${w.authorLink || `#author/${encodeURIComponent(w.name)}`}" class="author-link">${w.name}</a>`); if (linkedNames.length === 1) return linkedNames[0]; if (linkedNames.length === 2) return linkedNames.join(' and '); return `${linkedNames.slice(0, -1).join(', ')}, and ${linkedNames.slice(-1)}`; }; const grouped = writers.reduce((acc, writer) => { const baseRole = normalizeRole(writer.role || '_noRole', 1); const isFormer = !writer.isCurrentStaff; const key = `${baseRole}_${isFormer}`; if (!acc[key]) acc[key] = []; acc[key].push(writer); return acc; }, {}); const parts = Object.entries(grouped).map(([key, group]) => { const [baseRole, isFormerStr] = key.split('_'); const isFormer = isFormerStr === 'true'; const names = formatNames(group); if (baseRole === '_noRole') return names; let displayRole = normalizeRole(baseRole, group.length); if (isFormer) displayRole = `Former ${displayRole}`; return `${names} • <span class="author-role">${displayRole}</span>`; }); let final; if (parts.length === 1) final = parts[0]; else if (parts.length === 2) final = parts.join(' and '); else final = `${parts.slice(0, -1).join(', ')}, and ${parts.slice(-1)}`; return `By ${final}`; }
 function createInlineImageFigure(image) { const hasCaption = image.caption || image.credit; const placementClass = `placement--${image.placement.toLowerCase().replace(/\s+/g, '-')}`; let figureHTML = `<figure class="single-article-figure ${placementClass}"><img src="${image.file}" alt="${image.caption || 'Article image'}" class="single-article-image">`; if (hasCaption) { figureHTML += `<figcaption>${image.caption ? `<span class="caption-text">${image.caption}</span>` : ''}${image.credit ? `<span class="caption-credit">${image.credit}</span>` : ''}</figcaption>`; } figureHTML += `</figure>`; return figureHTML; }
-function injectImagesIntoContent(content, images) { if (!images || images.length === 0) return { mainContent: content, bottomContent: '' }; const tempDiv = document.createElement('div'); tempDiv.innerHTML = content; let contentElements = Array.from(tempDiv.children); const topImages = images.filter(img => img.placement.startsWith('Top')); const bottomBlockImages = images.filter(img => img.placement === 'Bottom Center'); const bodyImages = images.filter(img => !img.placement.startsWith('Top') && img.placement !== 'Bottom Center'); const blockElementIndices = contentElements.map((el, i) => (['P', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'BLOCKQUOTE'].includes(el.tagName) ? i : -1)).filter(i => i !== -1); if (bodyImages.length > 0) { if (blockElementIndices.length > 0) { const interval = Math.max(1, Math.floor(blockElementIndices.length / (bodyImages.length + 1))); for (let i = bodyImages.length - 1; i >= 0; i--) { const targetBlockNumber = (i + 1) * interval; const cappedTargetBlock = Math.min(targetBlockNumber, blockElementIndices.length); const insertionPointIndex = blockElementIndices[cappedTargetBlock - 1] + 1; const figureHtml = createInlineImageFigure(bodyImages[i]); const figureWrapper = document.createElement('div'); figureWrapper.innerHTML = figureHtml.trim(); if (figureWrapper.firstChild) contentElements.splice(insertionPointIndex, 0, figureWrapper.firstChild); } } else { const unplacedFigures = bodyImages.map(createInlineImageFigure); const figuresWrapper = document.createElement('div'); figuresWrapper.innerHTML = unplacedFigures.join(''); contentElements.push(...Array.from(figuresWrapper.children)); } } const topImagesHTML = topImages.map(createInlineImageFigure).join(''); const mainContentHTML = topImagesHTML + contentElements.map(el => el.outerHTML).join(''); const bottomContentHTML = bottomBlockImages.map(createInlineImageFigure).join(''); return { mainContent: mainContentHTML, bottomContent: bottomContentHTML }; }
+function injectImagesIntoContent(content, images) {
+    if (!images || images.length === 0) return { mainContent: content, bottomContent: '' };
+
+    const sanitizedContent = DOMPurify.sanitize(content, { USE_PROFILES: { html: true } });
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = sanitizedContent;
+    let contentElements = Array.from(tempDiv.children);
+
+    const parser = new DOMParser();
+
+    const createImageFigureNode = (image) => {
+        const figureHtml = createInlineImageFigure(image);
+        const doc = parser.parseFromString(DOMPurify.sanitize(figureHtml), 'text/html');
+        return doc.body.firstChild;
+    };
+
+    const topImages = images.filter(img => img.placement.startsWith('Top'));
+    const bottomBlockImages = images.filter(img => img.placement === 'Bottom Center');
+    const bodyImages = images.filter(img => !img.placement.startsWith('Top') && img.placement !== 'Bottom Center');
+
+    const blockElementIndices = contentElements
+        .map((el, i) => (['P', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'BLOCKQUOTE'].includes(el.tagName) ? i : -1))
+        .filter(i => i !== -1);
+
+    if (bodyImages.length > 0) {
+        if (blockElementIndices.length > 0) {
+            const interval = Math.max(1, Math.floor(blockElementIndices.length / (bodyImages.length + 1)));
+            for (let i = bodyImages.length - 1; i >= 0; i--) {
+                const targetBlockNumber = (i + 1) * interval;
+                const cappedTargetBlock = Math.min(targetBlockNumber, blockElementIndices.length);
+                const insertionPointIndex = blockElementIndices[cappedTargetBlock - 1] + 1;
+                const figureNode = createImageFigureNode(bodyImages[i]);
+                if (figureNode) {
+                    contentElements.splice(insertionPointIndex, 0, figureNode);
+                }
+            }
+        } else {
+            bodyImages.forEach(image => {
+                const figureNode = createImageFigureNode(image);
+                if (figureNode) contentElements.push(figureNode);
+            });
+        }
+    }
+
+    const topImagesHTML = topImages.map(createInlineImageFigure).join('');
+    const mainContentHTML = topImagesHTML + contentElements.map(el => el.outerHTML).join('');
+    const bottomContentHTML = bottomBlockImages.map(createInlineImageFigure).join('');
+
+    return { mainContent: mainContentHTML, bottomContent: bottomContentHTML };
+}
 
 function Comment(comment) {
     const isLoggedIn = getIsLoggedIn();
     const currentUser = getCurrentUser();
     const isAuthor = isLoggedIn && currentUser && currentUser.user_id === comment.author_id;
 
-    const actionsHTML = isAuthor ? `
-        <div class="comment-actions">
+    const li = document.createElement('li');
+    li.id = `comment-${comment.comment_id}`;
+
+    const commentDiv = document.createElement('div');
+    commentDiv.className = 'comment';
+
+    const commentAvatarHTML = CommentAvatar({
+        author_name: comment.author_name || 'Anonymous',
+        custom_avatar: comment.custom_avatar
+    });
+    const parser = new DOMParser();
+    const avatarNode = parser.parseFromString(DOMPurify.sanitize(commentAvatarHTML), 'text/html').body.firstChild;
+    if (avatarNode) {
+        commentDiv.appendChild(avatarNode);
+    }
+
+    const commentMain = document.createElement('div');
+    commentMain.className = 'comment-main';
+
+    const commentHeader = document.createElement('div');
+    commentHeader.className = 'comment-header';
+
+    const headerLeft = document.createElement('div');
+    const authorSpan = document.createElement('span');
+    authorSpan.className = 'comment-author';
+    authorSpan.textContent = comment.author_name;
+    const timestampSpan = document.createElement('span');
+    timestampSpan.className = 'comment-timestamp';
+    timestampSpan.textContent = formatTimeAgo(comment.timestamp);
+    headerLeft.appendChild(authorSpan);
+    headerLeft.appendChild(timestampSpan);
+    commentHeader.appendChild(headerLeft);
+
+    if (isAuthor) {
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'comment-actions';
+        actionsDiv.innerHTML = DOMPurify.sanitize(`
             <button class="comment-action-btn comment-edit-btn" data-comment-id="${comment.comment_id}" title="Edit comment">
                 <img src="assets/icons/edit.svg" alt="Edit">
             </button>
             <button class="comment-action-btn comment-delete-btn" data-comment-id="${comment.comment_id}" title="Delete comment">
                 <img src="assets/icons/delete.svg" alt="Delete">
             </button>
-        </div>
-    ` : '';
+        `);
+        commentHeader.appendChild(actionsDiv);
+    }
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'comment-content';
+    contentDiv.id = `comment-content-${comment.comment_id}`;
+    contentDiv.textContent = comment.content;
 
     const editFormId = `edit-textarea-${comment.comment_id}`;
+    const editForm = document.createElement('div');
+    editForm.className = 'comment-edit-form';
+    editForm.id = `comment-edit-form-${comment.comment_id}`;
+    editForm.style.display = 'none';
+    editForm.innerHTML = DOMPurify.sanitize(`
+        <label for="${editFormId}" class="sr-only">Edit your comment</label>
+        <textarea class="comment-edit-textarea" id="${editFormId}" name="${editFormId}"></textarea>
+        <div class="comment-edit-actions">
+            <button class="button-secondary cancel-btn" data-comment-id="${comment.comment_id}">Cancel</button>
+            <button class="button-primary save-btn" data-comment-id="${comment.comment_id}">Save Changes</button>
+        </div>
+    `);
+    editForm.querySelector('textarea').textContent = comment.content;
 
-    const commentAvatarHTML = CommentAvatar({
-        author_name: comment.author_name || 'Anonymous',
-        custom_avatar: comment.custom_avatar
-    });
+    commentMain.appendChild(commentHeader);
+    commentMain.appendChild(contentDiv);
+    commentMain.appendChild(editForm);
+    commentDiv.appendChild(commentMain);
+    li.appendChild(commentDiv);
 
-    return `
-        <li id="comment-${comment.comment_id}">
-            <div class="comment">
-                ${commentAvatarHTML}
-                <div class="comment-main">
-                    <div class="comment-header">
-                        <div>
-                            <span class="comment-author">${comment.author_name}</span>
-                            <span class="comment-timestamp">${formatTimeAgo(comment.timestamp)}</span>
-                        </div>
-                        ${actionsHTML}
-                    </div>
-                    <div class="comment-content" id="comment-content-${comment.comment_id}">${comment.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
-                    <div class="comment-edit-form" id="comment-edit-form-${comment.comment_id}" style="display: none;">
-                        <label for="${editFormId}" class="sr-only">Edit your comment</label>
-                        <textarea class="comment-edit-textarea" id="${editFormId}" name="${editFormId}">${comment.content}</textarea>
-                        <div class="comment-edit-actions">
-                            <button class="button-secondary cancel-btn" data-comment-id="${comment.comment_id}">Cancel</button>
-                            <button class="button-primary save-btn" data-comment-id="${comment.comment_id}">Save Changes</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </li>
-    `;
+    return li;
 }
 
 function CommentSection(articleId) {
@@ -241,11 +321,11 @@ function attachCommentFormListeners() {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Posting...';
 
-        const newComment = await postComment(articleId, contentInput.value.trim());
+        const newCommentData = await postComment(articleId, contentInput.value.trim());
 
-        if (newComment) {
-            const newCommentHTML = Comment(newComment);
-            commentList.insertAdjacentHTML('afterbegin', newCommentHTML);
+        if (newCommentData) {
+            const newCommentElement = Comment(newCommentData);
+            commentList.prepend(newCommentElement);
 
             const currentCount = (commentList.children.length);
             updateCommentCount(currentCount);
@@ -266,7 +346,11 @@ async function loadComments(articleId) {
     if (!commentList) return;
 
     const comments = await getComments(articleId);
-    commentList.innerHTML = comments.map(Comment).join('');
+    commentList.innerHTML = '';
+    comments.forEach(comment => {
+        const commentElement = Comment(comment);
+        commentList.appendChild(commentElement);
+    });
     updateCommentCount(comments.length);
 
     attachCommentActionListeners();
@@ -334,7 +418,7 @@ async function handleSaveComment(commentId) {
     const updatedComment = await editComment(commentId, newContent);
     if (updatedComment) {
         const contentDiv = document.getElementById(`comment-content-${commentId}`);
-        contentDiv.innerHTML = newContent.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        contentDiv.textContent = newContent;
         hideEditForm(commentId);
         showSuccess('Comment updated successfully!');
     } else {
@@ -361,7 +445,7 @@ export async function render(container, articleId) {
 
     if (article) {
         const recommendedArticles = getRecommendedArticles(article, articles);
-        container.innerHTML = createHTML(article, recommendedArticles);
+        container.innerHTML = DOMPurify.sanitize(createHTML(article, recommendedArticles), { USE_PROFILES: { html: true } });
 
         handleScrollPositioning(articleId);
         attachCommentFormListeners();
