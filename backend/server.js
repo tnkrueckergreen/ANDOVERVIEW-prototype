@@ -1,7 +1,6 @@
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
-const compression = require('compression');
 const { initializeDatabase } = require('./database');
 const apiRouter = require('./api-router');
 const authRouter = require('./auth-router');
@@ -13,7 +12,6 @@ const PORT = process.env.PORT || 5000;
 // Configure trust proxy for deployment readiness
 app.set('trust proxy', 1);
 
-app.use(compression());
 app.use(express.json());
 
 app.use(session({
@@ -37,14 +35,13 @@ app.use('/backend*', (req, res) => {
 app.use('/api', apiRouter);
 app.use('/api/users', authRouter);
 
-const staticCacheOptions = {
-    maxAge: '1y',
-    immutable: true
-};
-
 // Secure static file serving - only serve specific whitelisted directories
-app.use('/dist', express.static(path.join(__dirname, '../dist'), staticCacheOptions));
-app.use('/assets', express.static(path.join(__dirname, '../assets'), staticCacheOptions));
+app.use('/assets', express.static(path.join(__dirname, '../assets')));
+app.use('/css', express.static(path.join(__dirname, '../css')));
+app.use('/js', express.static(path.join(__dirname, '../js')));
+app.use('/data', express.static(path.join(__dirname, '../data')));
+
+// Serve uploads directory (for user-uploaded content)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Serve index.html at root
